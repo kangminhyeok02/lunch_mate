@@ -14,7 +14,8 @@
     "qr": "node scripts/generate-qr.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
     "reset:day": "node scripts/reset-day.mjs",
-    "check:storage": "node scripts/check-storage.mjs"
+    "check:storage": "node scripts/check-storage.mjs",
+    "menu:sync": "node scripts/sync-menu-images.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

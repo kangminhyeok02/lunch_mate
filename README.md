@@ -83,6 +83,28 @@ score = 이전 조 중복      × 100
 - 이전에 같은 조였던 사람은 가능한 한 분리 (해결 가능하면 중복 0쌍)
 - 인원이 4의 배수가 아니어도 조별 인원 차이는 최대 1명
 
+## 5.1 메뉴 사진 교체
+
+두 가지 방법이 있습니다.
+
+**① 관리자 페이지에서 업로드** (재배포 없음, 권장)
+
+`supabase/storage.sql` 을 한 번 실행해두면 `/admin` 의 "오늘의 메뉴 설정"에서
+사진을 바로 올릴 수 있습니다. 준비 상태는 `npm run check:storage` 로 확인합니다.
+
+**② 저장소에 파일로 넣기** (스토리지 설정 불필요)
+
+`food/1.*` 을 MENU A, `food/2.*` 를 MENU B 사진으로 두고:
+
+```bash
+npm run menu:sync    # public/menu/ 로 복사하고 기본 메뉴의 경로를 갱신
+npm run build        # 확인
+git add -A && git commit -m "메뉴 사진 교체" && git push
+```
+
+jpg / jpeg / png / webp 를 지원하며, 확장자가 바뀌면 코드의 `imageUrl` 도 함께 맞춰집니다.
+①과 달리 날짜와 무관하게 항상 표시되므로, 행사 당일 설정을 깜빡할 일이 없습니다.
+
 ## 6. 관리자 페이지
 
 `/admin` — 비밀번호는 `ADMIN_PASSWORD`.
