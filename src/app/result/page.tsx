@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { SoundToggle } from "@/components/sound-toggle";
 import { MESSAGES } from "@/lib/messages";
 import { readSession } from "@/lib/session";
+import { playReveal, playSound } from "@/lib/sound";
 import { useAssignmentWatch } from "@/lib/use-assignment-watch";
 
 interface ResultPayload {
@@ -23,6 +25,8 @@ export default function ResultPage() {
   const [result, setResult] = useState<ResultPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPrompts, setShowPrompts] = useState(false);
+  /** 결과가 처음 뜰 때만 울린다. 새로고침이나 재조회로 다시 울리지 않도록. */
+  const revealed = useRef(false);
 
   useEffect(() => {
     const session = readSession();
@@ -43,6 +47,12 @@ export default function ResultPage() {
       .then((data: ResultPayload) => setResult(data))
       .catch(() => setError(MESSAGES.serverError));
   }, [userId, watch?.assigned]);
+
+  useEffect(() => {
+    if (!result?.ready || revealed.current) return;
+    revealed.current = true;
+    playReveal();
+  }, [result?.ready]);
 
   if (error) {
     return (
@@ -68,6 +78,10 @@ export default function ResultPage() {
 
   return (
     <main className="lm-shell">
+      <div className="flex justify-end">
+        <SoundToggle />
+      </div>
+
       <div className="flex-1">
         <div className="text-center">
           <div className="animate-pop-in text-5xl">🎉</div>
@@ -134,7 +148,14 @@ export default function ResultPage() {
       </div>
 
       {!showPrompts && (
-        <button type="button" onClick={() => setShowPrompts(true)} className="lm-button mt-6">
+        <button
+          type="button"
+          onClick={() => {
+            playSound("select");
+            setShowPrompts(true);
+          }}
+          className="lm-button mt-6"
+        >
           오늘의 질문 보기 →
         </button>
       )}

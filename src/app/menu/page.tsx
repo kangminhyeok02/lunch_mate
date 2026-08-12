@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MESSAGES } from "@/lib/messages";
 import { readSession, writeSession } from "@/lib/session";
+import { playSound } from "@/lib/sound";
 import type { MenuOption } from "@/lib/types";
 
 export default function MenuPage() {
@@ -30,9 +31,11 @@ export default function MenuPage() {
 
   function handleNext() {
     if (!selected) {
+      playSound("error");
       setError(MESSAGES.menuRequired);
       return;
     }
+    playSound("select");
     writeSession({ menuChoice: selected });
     router.push("/speed");
   }
@@ -56,6 +59,7 @@ export default function MenuPage() {
                 key={menu.id}
                 type="button"
                 onClick={() => {
+                  playSound("tap");
                   setSelected(menu.id);
                   setError(null);
                 }}

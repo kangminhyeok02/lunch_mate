@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MESSAGES } from "@/lib/messages";
 import { readSession, writeSession } from "@/lib/session";
+import { playSound } from "@/lib/sound";
 import { EATING_SPEEDS, SPEED_LABEL, type EatingSpeed } from "@/lib/types";
 
 export default function SpeedPage() {
@@ -27,6 +28,7 @@ export default function SpeedPage() {
 
   async function handleSubmit() {
     if (!selected) {
+      playSound("error");
       setError(MESSAGES.speedRequired);
       return;
     }
@@ -54,10 +56,12 @@ export default function SpeedPage() {
 
       // A duplicate is not a failure for the user — they are simply already in.
       if (response.ok || response.status === 409) {
+        playSound("submit");
         router.push("/waiting");
         return;
       }
 
+      playSound("error");
       const data = (await response.json()) as { error?: string };
       setError(
         data.error === "MENU_REQUIRED"
@@ -90,6 +94,7 @@ export default function SpeedPage() {
               key={speed}
               type="button"
               onClick={() => {
+                playSound("tap");
                 setSelected(speed);
                 setError(null);
               }}

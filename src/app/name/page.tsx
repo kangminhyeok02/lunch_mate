@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MESSAGES } from "@/lib/messages";
 import { readSession, writeSession } from "@/lib/session";
+import { playSound } from "@/lib/sound";
 
 interface RosterUser {
   id: string;
@@ -40,9 +41,11 @@ export default function NamePage() {
 
   function handleNext() {
     if (!selectedUser) {
+      playSound("error");
       setError(MESSAGES.nameRequired);
       return;
     }
+    playSound("select");
     writeSession({ userId: selectedUser.id, name: selectedUser.name });
     router.push(selectedUser.submitted ? "/waiting" : "/menu");
   }
@@ -79,6 +82,7 @@ export default function NamePage() {
                   <button
                     type="button"
                     onClick={() => {
+                      playSound("tap");
                       setSelected(user.id);
                       setError(null);
                     }}

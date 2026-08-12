@@ -1,8 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { SoundToggle } from "@/components/sound-toggle";
+import { playSound, unlockAudio } from "@/lib/sound";
 
 export default function LandingPage() {
   return (
     <main className="lm-shell justify-between">
+      <div className="flex justify-end">
+        <SoundToggle />
+      </div>
+
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <div className="animate-pop-in text-7xl">🍚</div>
 
@@ -27,7 +35,15 @@ export default function LandingPage() {
         </p>
       </div>
 
-      <Link href="/name" className="lm-button animate-fade-up">
+      <Link
+        href="/name"
+        // 첫 탭에서 오디오를 깨워 둬야 결과 공개 때 자동으로 소리가 난다.
+        onClick={() => {
+          unlockAudio();
+          playSound("select");
+        }}
+        className="lm-button animate-fade-up"
+      >
         시작하기 →
       </Link>
     </main>
