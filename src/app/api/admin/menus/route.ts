@@ -11,6 +11,7 @@ interface MenuInput {
   name?: unknown;
   description?: unknown;
   emoji?: unknown;
+  imageUrl?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       name: typeof m.name === "string" ? m.name.trim() : "",
       description: typeof m.description === "string" ? m.description.trim() : "",
       emoji: typeof m.emoji === "string" && m.emoji ? m.emoji : "🍽️",
-      imageUrl: null,
+      imageUrl: typeof m.imageUrl === "string" && m.imageUrl ? m.imageUrl : null,
       active: true,
     }));
 

@@ -13,7 +13,8 @@
     "e2e": "node scripts/e2e-smoke.mjs",
     "qr": "node scripts/generate-qr.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
-    "reset:day": "node scripts/reset-day.mjs"
+    "reset:day": "node scripts/reset-day.mjs",
+    "check:storage": "node scripts/check-storage.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

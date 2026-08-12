@@ -62,10 +62,24 @@ export default function MenuPage() {
                 className={`lm-choice ${isSelected ? "lm-choice-selected" : ""}`}
               >
                 <span className="lm-label">MENU {index === 0 ? "A" : "B"}</span>
+
+                {menu.imageUrl && (
+                  // 업로드 도메인이 런타임에 정해져 next/image 의 허용 도메인 설정과 맞지 않는다.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={menu.imageUrl}
+                    alt={menu.name}
+                    className="mt-2 aspect-[4/3] w-full rounded-xl object-cover"
+                  />
+                )}
+
                 <div className="mt-2 flex items-center gap-3">
-                  <span className="text-4xl">{menu.emoji}</span>
+                  {!menu.imageUrl && <span className="text-4xl">{menu.emoji}</span>}
                   <div>
-                    <p className="text-xl font-bold">{menu.name}</p>
+                    <p className="text-xl font-bold">
+                      {menu.imageUrl && <span className="mr-1.5">{menu.emoji}</span>}
+                      {menu.name}
+                    </p>
                     <p className="mt-0.5 text-sm text-slate-500">{menu.description}</p>
                   </div>
                 </div>
