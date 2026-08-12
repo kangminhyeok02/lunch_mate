@@ -52,18 +52,18 @@ export interface LunchStore {
 export const DEFAULT_MENUS: Omit<MenuOption, "date">[] = [
   {
     id: "menu-a",
-    name: "제육볶음",
-    description: "매콤한 제육볶음 · 밥 + 국 + 반찬",
-    emoji: "🍚",
-    imageUrl: null,
+    name: "황태콩나물해장국",
+    description: "소담상 · 잡곡밥 + 오징어까스 + 어묵볶음 외",
+    emoji: "🍲",
+    imageUrl: "/menu/menu-a.jpg",
     active: true,
   },
   {
     id: "menu-b",
-    name: "돈까스",
-    description: "바삭한 왕돈까스 · 밥 + 샐러드 + 소스",
-    emoji: "🥩",
-    imageUrl: null,
+    name: "돈육카레라이스",
+    description: "인터고메 · 계란후라이 + 우동국물 + 오징어까스 외",
+    emoji: "🍛",
+    imageUrl: "/menu/menu-b.jpg",
     active: true,
   },
 ];
