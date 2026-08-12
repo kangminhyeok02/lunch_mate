@@ -13,3 +13,4 @@ next-env.d.ts
 .omc/
 data/*.json
 public/qr/
+vercel-env.txt
