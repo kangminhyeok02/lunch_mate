@@ -1,0 +1,14 @@
+[
+  { "id": "m-01", "content": "우리 조원들의 공통점 3개를 찾아보세요!", "active": true },
+  { "id": "m-02", "content": "조원 중 가장 의외의 취미를 가진 사람을 찾아보세요.", "active": true },
+  { "id": "m-03", "content": "우리 조를 가장 잘 표현하는 단어 하나를 정해주세요.", "active": true },
+  { "id": "m-04", "content": "서로의 이름을 딴 별명을 하나씩 지어주세요.", "active": true },
+  { "id": "m-05", "content": "조원들의 입사 전 마지막 여행지를 모두 알아내세요.", "active": true },
+  { "id": "m-06", "content": "다 같이 인생 첫 월급 사용 계획을 공유해보세요.", "active": true },
+  { "id": "m-07", "content": "조원 모두가 좋아하는 메뉴 하나를 찾아보세요.", "active": true },
+  { "id": "m-08", "content": "각자 자기소개를 세 단어로만 해보세요.", "active": true },
+  { "id": "m-09", "content": "식사 후 다 같이 사진 한 장을 남겨보세요.", "active": true },
+  { "id": "m-10", "content": "조원 중 가장 아침형 인간을 찾아보세요.", "active": true },
+  { "id": "m-11", "content": "서로에게 궁금한 질문을 하나씩 던져보세요.", "active": true },
+  { "id": "m-12", "content": "우리 조만의 구호를 하나 만들어보세요.", "active": true }
+]

@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  /* Every screen is one centred mobile column that widens gracefully. */
+  .lm-shell {
+    @apply mx-auto flex min-h-[100dvh] w-full max-w-[430px] flex-col px-5 pb-8 pt-6;
+  }
+
+  .lm-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm;
+  }
+
+  .lm-choice {
+    @apply w-full rounded-2xl border-2 border-slate-200 bg-white p-4 text-left transition
+           active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .lm-choice-selected {
+    @apply border-brand-600 bg-brand-50 ring-2 ring-brand-100;
+  }
+
+  .lm-button {
+    @apply flex w-full items-center justify-center rounded-2xl bg-brand-600 px-5 py-4
+           text-base font-semibold text-white transition active:scale-[0.99]
+           disabled:cursor-not-allowed disabled:bg-slate-300;
+  }
+
+  .lm-button-ghost {
+    @apply flex w-full items-center justify-center rounded-2xl border border-slate-300
+           bg-white px-5 py-3.5 text-base font-medium text-slate-700 active:scale-[0.99];
+  }
+
+  .lm-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-brand-600;
+  }
+}

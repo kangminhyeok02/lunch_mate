@@ -1,0 +1,154 @@
+# 🍚 LUNCH MATE
+
+삼성증권 신입사원 36명의 **메뉴 선호 · 식사 속도 · 과거 만남 이력**을 기반으로 최적의 점심조를 구성하고,
+조별 질문과 미션으로 자연스러운 네트워킹을 유도하는 실시간 점심 매칭 웹서비스.
+
+> 오늘 메뉴부터 식사 속도까지, 나에게 맞는 점심 메이트
+
+## 사용자 플로우
+
+```
+QR/링크 → 이름 선택 → 메뉴 선택 → 식사 속도 선택 → 대기 화면
+                                              ↓ (관리자 배정)
+        점심조 공개 → Matching Point → 오늘의 질문 → 오늘의 미션
+```
+
+## 기술 스택
+
+Next.js 15 (App Router) · TypeScript · Tailwind CSS · Supabase · Vercel
+
+---
+
+## 1. 로컬 실행
+
+```bash
+npm install
+cp .env.example .env    # 값 채우기
+npm run dev             # http://localhost:3000
+```
+
+Supabase 없이도 바로 돌아갑니다. 환경변수가 없으면 로컬 JSON 파일(`data/lunch-mate.json`)에
+저장하는 어댑터가 자동으로 선택됩니다.
+
+## 2. 환경변수
+
+| 변수 | 필수 | 설명 |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | 배포 시 | `https://<project-ref>.supabase.co` — 대시보드 주소가 아닙니다 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 배포 시 | anon / public (publishable) 키. 브라우저 노출 OK |
+| `SUPABASE_SERVICE_ROLE_KEY` | 선택 | service_role (secret) 키. **`NEXT_PUBLIC_` 금지** |
+| `ADMIN_PASSWORD` | ✅ | `/admin` 비밀번호. 없으면 관리자 페이지가 잠깁니다 |
+| `LUNCH_MATE_ROSTER` | 선택 | 쉼표로 구분한 36명 이름. 없으면 `src/data/roster.seed.json` 사용 |
+
+Supabase 키 위치: **Project Settings → API**
+
+⚠️ `NEXT_PUBLIC_*` 변수는 **빌드 시점에 번들에 박힙니다.** Vercel에서는 환경변수를 먼저 등록한 뒤
+배포(또는 재배포)해야 반영됩니다.
+
+## 3. Supabase 스키마
+
+Supabase Studio → **SQL Editor** → `supabase/migration.sql` 전체 붙여넣기 → Run.
+
+확인:
+
+```bash
+npm run check:supabase
+```
+
+## 4. 참가자 명단
+
+기본값은 `src/data/roster.seed.json`의 예시 이름 36개입니다. **실제 행사 전에 반드시 교체하세요.**
+
+```bash
+# .env
+LUNCH_MATE_ROSTER=강민혁,김서준,이도윤,...
+```
+
+## 5. 배정 알고리즘
+
+점수가 낮을수록 좋은 조합입니다.
+
+```
+score = 이전 조 중복      × 100
+      + 식사 속도 차이     × 30
+      + 메뉴 불일치        × 10
+      + 조 인원 불균형     × 100
+```
+
+가중치는 `src/lib/matching.ts`의 `WEIGHTS`에서 조정합니다.
+
+- **메뉴·속도로 초기 클러스터링** 후 **최선 개선 교환(best-improvement swap) 지역 탐색**으로 최적화
+- 같은 seed + 같은 입력 → **항상 같은 결과** (재현 가능, 디버깅 가능)
+- 제출 순서는 결과에 영향을 주지 않음
+- 이전에 같은 조였던 사람은 가능한 한 분리 (해결 가능하면 중복 0쌍)
+- 인원이 4의 배수가 아니어도 조별 인원 차이는 최대 1명
+
+## 6. 관리자 페이지
+
+`/admin` — 비밀번호는 `ADMIN_PASSWORD`.
+
+참여 현황, 메뉴별·속도별 인원, 미제출자 명단, 오늘의 메뉴 2개 설정,
+**점심조 배정 시작**, 배정 결과 재생성, 조별 질문·미션 확인.
+
+비밀번호는 브라우저로 전달되지 않고, HMAC 토큰만 httpOnly 쿠키에 저장됩니다.
+
+## 7. 테스트
+
+```bash
+npm test              # 단위 테스트 45개
+npm run build         # 타입 체크 + 프로덕션 빌드
+
+# 전체 사용자 플로우 E2E (서버를 먼저 띄운 상태에서)
+LUNCH_MATE_FORCE_FILE_STORE=1 ADMIN_PASSWORD=test-admin-pw \
+  LUNCH_MATE_DATA_FILE=/tmp/lm/db.json npx next start -p 3123 &
+ADMIN_PASSWORD=test-admin-pw npm run e2e -- http://127.0.0.1:3123
+```
+
+E2E는 36명 동시 제출, 중복 제출 차단, 미인증 배정 요청 차단, 9개 조 배정,
+전원 결과 조회, 재배정까지 실제 HTTP로 검증합니다.
+
+## 8. Vercel 배포
+
+```bash
+git init && git add -A && git commit -m "LUNCH MATE"
+gh repo create lunch-mate --private --source=. --push
+```
+
+1. [vercel.com/new](https://vercel.com/new) → GitHub 저장소 import
+2. **Environment Variables**에 위 표의 변수 등록 (`SUPABASE_SERVICE_ROLE_KEY`는 `NEXT_PUBLIC_` 없이)
+3. Deploy
+4. 배포 URL로 QR 생성:
+
+```bash
+npm run qr -- https://your-app.vercel.app
+# → public/qr/lunch-mate.png, .svg
+```
+
+⚠️ Vercel의 파일 시스템은 요청마다 초기화됩니다. **실제 행사에서는 Supabase 설정이 필수**입니다.
+관리자 페이지 상단에 현재 저장소 종류가 표시되니 배포 후 확인하세요.
+
+## 9. 행사 당일 운영
+
+1. `npm run check:supabase`로 스키마 확인
+2. `/admin` 로그인 → 오늘의 메뉴 2개 설정
+3. QR 배포 → 참가자 제출 (관리자 화면에서 실시간 카운트)
+4. 36/36 도달 시 **점심조 배정 시작**
+5. 참가자 화면은 자동으로 결과로 전환 (Supabase Realtime, 미설정 시 폴링)
+6. 리허설 후 데이터 초기화: `npm run reset:day`
+
+## 프로젝트 구조
+
+```
+src/
+  app/            페이지 + API 라우트
+  lib/
+    matching.ts   배정 알고리즘 (점수 기반 + 지역 탐색)
+    prompts.ts    조별 질문/미션 배분
+    assignment.ts 알고리즘 ↔ 저장소 연결
+    auth.ts       관리자 인증
+    store/        저장소 추상화 (파일 / Supabase)
+  data/           명단·질문·미션 시드
+supabase/         migration.sql
+scripts/          QR 생성, E2E, 스키마 확인, 데이터 초기화
+tests/            단위 테스트
+```

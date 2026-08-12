@@ -1,0 +1,16 @@
+[
+  { "id": "q-ice-01", "category": "ICE_BREAKING", "content": "요즘 가장 재미있게 본 콘텐츠는?", "active": true },
+  { "id": "q-ice-02", "category": "ICE_BREAKING", "content": "주말에 가장 하고 싶은 것은?", "active": true },
+  { "id": "q-ice-03", "category": "ICE_BREAKING", "content": "최근 가장 맛있게 먹은 음식은?", "active": true },
+  { "id": "q-ice-04", "category": "ICE_BREAKING", "content": "요즘 가장 자주 사용하는 앱은?", "active": true },
+  { "id": "q-ice-05", "category": "ICE_BREAKING", "content": "갑자기 일주일 휴가가 생긴다면 어디로 갈 것인가?", "active": true },
+  { "id": "q-car-01", "category": "CAREER", "content": "삼성증권에서 가장 해보고 싶은 업무는?", "active": true },
+  { "id": "q-car-02", "category": "CAREER", "content": "1년 뒤 어떤 신입사원이 되고 싶은가?", "active": true },
+  { "id": "q-car-03", "category": "CAREER", "content": "내가 생각하는 좋은 동료란?", "active": true },
+  { "id": "q-car-04", "category": "CAREER", "content": "입사 후 가장 기대되는 것은?", "active": true },
+  { "id": "q-car-05", "category": "CAREER", "content": "금융업에서 AI가 가장 많이 바꿀 것 같은 것은?", "active": true },
+  { "id": "q-fut-01", "category": "FUTURE", "content": "10년 뒤 나는 어떤 모습으로 성장해 있을까?", "active": true },
+  { "id": "q-fut-02", "category": "FUTURE", "content": "돈과 시간이 충분하다면 가장 해보고 싶은 것은?", "active": true },
+  { "id": "q-fut-03", "category": "FUTURE", "content": "앞으로 꼭 이루고 싶은 목표는?", "active": true },
+  { "id": "q-fut-04", "category": "FUTURE", "content": "10년 후 삼성증권에서 어떤 역할을 하고 있을까?", "active": true }
+]

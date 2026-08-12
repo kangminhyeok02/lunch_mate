@@ -1,0 +1,81 @@
+LUNCH MATE — implementation log
+================================
+
+Source spec: LUNCH_MATE_RALPH_SPEC.md
+Completed: 2026-08-12
+
+WHAT WAS BUILT
+--------------
+Next.js 15 (App Router) + TypeScript + Tailwind, with a storage abstraction so the
+whole flow runs with or without Supabase.
+
+  src/lib/matching.ts     score-based grouping (the core of the spec)
+  src/lib/prompts.ts      per-table question + mission allocation
+  src/lib/assignment.ts   algorithm <-> storage
+  src/lib/auth.ts         admin gate (HMAC token, password never sent to browser)
+  src/lib/store/          LunchStore interface + file adapter + Supabase adapter
+  src/app/                landing, name, menu, speed, waiting, result, admin, 9 API routes
+  supabase/migration.sql  schema incl. the (user_id, date) unique index
+  scripts/                e2e-smoke, generate-qr, check-supabase, reset-day
+
+ALGORITHM
+---------
+Deterministic menu/speed clustering for the initial partition, then best-improvement
+pairwise swap local search. Chosen over simulated annealing because the spec requires
+reproducibility, and at n=36 the search converges in milliseconds anyway.
+
+  score = repeatPairs*100 + speedSpread*30 + menuMismatch*10 + sizeImbalance*100
+
+History repeats are recency-weighted: yesterday's pairing costs more than last month's.
+
+BUGS FOUND AND FIXED DURING THE BUILD
+-------------------------------------
+1. The seed did nothing. initialPartition() shuffled with the RNG and then sorted with
+   userId as the final tiebreak, throwing the shuffle away. Every seed produced identical
+   tables. Fixed by tie-breaking on hashSeed(seed + userId) — varies with the seed while
+   staying independent of the order submissions arrive in.
+
+2. Related: the call site still passed `rng` after the signature changed to take `seed`.
+   TypeScript would have caught it, but vitest does not typecheck, so it surfaced only as
+   the failing determinism test. Worth remembering: run `npm run build` alongside `npm test`.
+
+3. FileLunchStore.read() returned `{ ...EMPTY }` — a SHALLOW copy of a module-level
+   constant. Every store instance shared and mutated the same `days` object, so data
+   leaked across instances. Would have been a real cross-request bug, not just a test
+   artifact. Fixed with a fresh emptyShape() factory.
+
+4. check-supabase.mjs gave a false positive: `.select("*", { head: true, count: "exact" })`
+   does not surface a missing-table error. Switched to a real `.select("*").limit(1)`.
+   This briefly led to reporting the schema as applied when it was not.
+
+VERIFICATION
+------------
+  npm test        45 passed / 0 failed
+  npm run build   compiled successfully, 16 routes
+  npm run typecheck  exit 0
+  next lint       no warnings or errors
+  e2e-smoke.mjs   46 passed / 0 failed against a real `next start`
+
+The E2E covers: 36 concurrent submissions, duplicate rejection (409), unauthenticated
+admin rejection (401), 9-table assignment, all 36 reading their own table back, distinct
+questions/missions per table, regeneration, and every page returning 200.
+
+NOT DONE (needs the user)
+-------------------------
+- supabase/migration.sql has NOT been applied. Connectivity and the anon key are
+  confirmed working; only the DDL is missing. Run it in Supabase Studio, then
+  `npm run check:supabase`.
+- src/data/roster.seed.json contains placeholder names. Replace with the real 36 before
+  the event (or set LUNCH_MATE_ROSTER).
+- SUPABASE_SERVICE_ROLE_KEY is intentionally blank: the key was echoed into a chat
+  transcript and should be rotated first. The app works without it.
+- GitHub push and Vercel deploy need interactive account auth.
+
+GOTCHAS FOR FUTURE WORK
+-----------------------
+- NEXT_PUBLIC_* variables are inlined at BUILD time, including in server bundles.
+  Changing them requires a rebuild/redeploy, and shell overrides at runtime will not
+  take effect. LUNCH_MATE_FORCE_FILE_STORE exists as a runtime-read testing seam
+  precisely because of this.
+- Vercel's filesystem is ephemeral, so the file adapter cannot back the real event.
+  The admin page displays which adapter is live.
