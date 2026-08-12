@@ -223,7 +223,16 @@ async function main() {
   );
 
   console.log("\n12. Pages render");
-  for (const path of ["/", "/name", "/menu", "/speed", "/waiting", "/result", "/admin"]) {
+  for (const path of [
+    "/",
+    "/name",
+    "/menu",
+    "/speed",
+    "/waiting",
+    "/result",
+    "/question",
+    "/admin",
+  ]) {
     const response = await fetch(`${BASE}${path}`);
     check(`GET ${path}`, response.status === 200, `status ${response.status}`);
   }

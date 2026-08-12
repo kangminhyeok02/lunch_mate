@@ -24,7 +24,6 @@ export default function ResultPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [result, setResult] = useState<ResultPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showPrompts, setShowPrompts] = useState(false);
   /** 결과가 처음 뜰 때만 울린다. 새로고침이나 재조회로 다시 울리지 않도록. */
   const revealed = useRef(false);
 
@@ -127,38 +126,18 @@ export default function ResultPage() {
           </div>
         )}
 
-        {showPrompts && (
-          <div className="mt-6 space-y-3">
-            {result.question && (
-              <div className="lm-card animate-fade-up">
-                <p className="lm-label">💬 오늘의 질문</p>
-                <p className="mt-2 text-lg font-bold leading-relaxed">{result.question}</p>
-              </div>
-            )}
-            {result.mission && (
-              <div className="animate-fade-up rounded-2xl bg-slate-900 p-4 text-white">
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">
-                  🎯 TODAY&apos;S MISSION
-                </p>
-                <p className="mt-2 text-lg font-bold leading-relaxed">{result.mission}</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {!showPrompts && (
-        <button
-          type="button"
-          onClick={() => {
-            playSound("select");
-            setShowPrompts(true);
-          }}
-          className="lm-button mt-6"
-        >
-          오늘의 질문 보기 →
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          playSound("select");
+          router.push("/question");
+        }}
+        className="lm-button mt-6"
+      >
+        오늘의 질문 보기 →
+      </button>
     </main>
   );
 }
