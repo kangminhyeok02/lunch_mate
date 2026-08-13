@@ -12,9 +12,9 @@ export const SPEED_ORDER: Record<EatingSpeed, number> = {
 };
 
 export const SPEED_LABEL: Record<EatingSpeed, { emoji: string; title: string; detail: string }> = {
-  SLOW: { emoji: "🐢", title: "천천히 먹는 편", detail: "20~30분 이상" },
-  NORMAL: { emoji: "🙂", title: "보통", detail: "15~20분" },
-  FAST: { emoji: "⚡", title: "빠르게 먹는 편", detail: "10~15분" },
+  SLOW: { emoji: "🐢", title: "천천히 먹는 편", detail: "15분 이상" },
+  NORMAL: { emoji: "🙂", title: "보통", detail: "5~15분" },
+  FAST: { emoji: "⚡", title: "빠르게 먹는 편", detail: "5분 이내" },
 };
 
 /**
