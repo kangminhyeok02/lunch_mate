@@ -86,8 +86,14 @@ create table if not exists lunch_days (
   date       date primary key,
   status     text not null default 'NOT_STARTED'
              check (status in ('NOT_STARTED','COLLECTING','READY_TO_ASSIGN','ASSIGNING','ASSIGNED')),
+  -- 관리자가 "전원 답변" 조건을 건너뛰고 미션을 연 경우.
+  missions_unlocked boolean not null default false,
   updated_at timestamptz not null default now()
 );
+
+-- 이 컬럼이 생기기 전에 만들어진 데이터베이스를 위한 보강.
+alter table lunch_days
+  add column if not exists missions_unlocked boolean not null default false;
 
 create index if not exists lunch_preferences_date_idx on lunch_preferences (date);
 create index if not exists lunch_groups_date_idx on lunch_groups (date);

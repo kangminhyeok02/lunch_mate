@@ -248,4 +248,68 @@ describe("getAnswerBoard", () => {
     await store.saveGroups(DATE, [seatFour()]);
     expect(await boardFor(getRoster()[20].id)).toBeNull();
   });
+
+  it("keeps the mission shut until the whole table has answered", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+
+    for (const [index, userId] of group.memberIds.entries()) {
+      await store.saveAnswer({
+        userId,
+        date: DATE,
+        groupId: GROUP_ID,
+        questionId: "q-1",
+        content: `답변 ${index}`,
+      });
+
+      const board = await boardFor(group.memberIds[0]);
+      const isLast = index === group.memberIds.length - 1;
+      expect(board?.missionUnlocked).toBe(isLast);
+      expect(board?.missionForced).toBe(false);
+    }
+  });
+
+  it("opens the mission early when an admin forces it", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+    const me = group.memberIds[0];
+
+    await store.saveAnswer({
+      userId: me,
+      date: DATE,
+      groupId: GROUP_ID,
+      questionId: "q-1",
+      content: "나만 씀",
+    });
+    expect((await boardFor(me))?.missionUnlocked).toBe(false);
+
+    await store.setMissionsUnlocked(DATE, true);
+    const forced = await boardFor(me);
+    expect(forced?.missionUnlocked).toBe(true);
+    // Flagged so the screen can explain why it opened with answers missing.
+    expect(forced?.missionForced).toBe(true);
+
+    await store.setMissionsUnlocked(DATE, false);
+    expect((await boardFor(me))?.missionUnlocked).toBe(false);
+  });
+
+  it("does not mark the mission forced once everyone has answered anyway", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+    await store.setMissionsUnlocked(DATE, true);
+
+    for (const userId of group.memberIds) {
+      await store.saveAnswer({
+        userId,
+        date: DATE,
+        groupId: GROUP_ID,
+        questionId: "q-1",
+        content: "답변",
+      });
+    }
+
+    const board = await boardFor(group.memberIds[0]);
+    expect(board?.missionUnlocked).toBe(true);
+    expect(board?.missionForced).toBe(false);
+  });
 });

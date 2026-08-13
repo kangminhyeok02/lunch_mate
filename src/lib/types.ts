@@ -124,4 +124,6 @@ export interface DayState {
   date: string;
   status: AssignmentStatus;
   menus: MenuOption[];
+  /** Admin override: opens the mission without waiting for every answer. */
+  missionsUnlocked: boolean;
 }

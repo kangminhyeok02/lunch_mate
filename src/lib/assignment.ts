@@ -141,6 +141,10 @@ export interface AnswerBoard {
   /** False until the reader has answered — the others stay hidden. */
   revealed: boolean;
   answers: SharedAnswer[];
+  /** The mission opens once the table is done, or when an admin forces it. */
+  missionUnlocked: boolean;
+  /** True when the admin opened it early, so the screen can say so. */
+  missionForced: boolean;
 }
 
 /**
@@ -154,14 +158,24 @@ export async function getAnswerBoard(
   const result = await getResultForUser(date, userId);
   if (!result) return null;
 
-  const answers = await getStore().listAnswers(date, result.group.id);
+  const store = getStore();
+  const [answers, day] = await Promise.all([
+    store.listAnswers(date, result.group.id),
+    store.getDayState(date),
+  ]);
   const byId = new Map(getRoster().map((u) => [u.id, u]));
   const mine = answers.find((a) => a.userId === userId) ?? null;
 
   // Only count answers from people actually seated at this table.
   const seated = answers.filter((a) => result.group.memberIds.includes(a.userId));
 
+  const everyoneAnswered =
+    result.members.length > 0 && seated.length >= result.members.length;
+  const forced = day.missionsUnlocked && !everyoneAnswered;
+
   return {
+    missionUnlocked: everyoneAnswered || day.missionsUnlocked,
+    missionForced: forced,
     question: result.question?.content ?? null,
     groupNumber: result.group.groupNumber,
     answeredCount: seated.length,

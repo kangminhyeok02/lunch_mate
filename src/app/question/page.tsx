@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SoundToggle } from "@/components/sound-toggle";
 import { MESSAGES } from "@/lib/messages";
 import { readSession } from "@/lib/session";
-import { playReveal, playSound } from "@/lib/sound";
+import { playSound } from "@/lib/sound";
 import { ANSWER_MAX_LENGTH } from "@/lib/types";
 
 interface SharedAnswer {
@@ -25,11 +25,7 @@ interface Board {
   myAnswer?: string | null;
   revealed?: boolean;
   answers?: SharedAnswer[];
-}
-
-interface ResultPayload {
-  ready: boolean;
-  mission?: string | null;
+  missionUnlocked?: boolean;
 }
 
 /** Answers land while people are eating, so keep the board fresh. */
@@ -38,10 +34,8 @@ const POLL_INTERVAL_MS = 5000;
 export default function QuestionPage() {
   const router = useRouter();
   const [board, setBoard] = useState<Board | null>(null);
-  const [mission, setMission] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
-  const [missionOpen, setMissionOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -74,16 +68,11 @@ export default function QuestionPage() {
 
     void (async () => {
       try {
-        const [boardRes, resultRes] = await Promise.all([
-          fetch(`/api/answers?userId=${encodeURIComponent(session.userId)}`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/result?userId=${encodeURIComponent(session.userId)}`, {
-            cache: "no-store",
-          }),
-        ]);
-        const boardData = (await boardRes.json()) as Board;
-        const resultData = (await resultRes.json()) as ResultPayload;
+        const response = await fetch(
+          `/api/answers?userId=${encodeURIComponent(session.userId)}`,
+          { cache: "no-store" },
+        );
+        const boardData = (await response.json()) as Board;
 
         // Before assignment the result screen owns the waiting copy.
         if (!boardData.ready) {
@@ -92,7 +81,6 @@ export default function QuestionPage() {
         }
         if (!alive.current) return;
         setBoard(boardData);
-        setMission(resultData.mission ?? null);
       } catch {
         if (alive.current) setError(MESSAGES.serverError);
       }
@@ -168,9 +156,9 @@ export default function QuestionPage() {
   const answeredCount = board.answeredCount ?? 0;
   const memberCount = board.memberCount ?? 0;
   const showComposer = !board.revealed || editing;
-  // The mission is the last step: it waits for the whole table to answer.
-  const everyoneAnswered = memberCount > 0 && answeredCount >= memberCount;
-  const missionUnlocked = Boolean(board.revealed) && everyoneAnswered;
+  // The mission is the last step, on its own screen. The server decides when it
+  // opens: the whole table has answered, or an admin forced it.
+  const missionUnlocked = Boolean(board.revealed && board.missionUnlocked);
   const remaining = Math.max(memberCount - answeredCount, 0);
 
   return (
@@ -309,7 +297,7 @@ export default function QuestionPage() {
           </section>
         )}
 
-        {board.revealed && !everyoneAnswered && (
+        {board.revealed && !missionUnlocked && (
           <p className="mt-6 animate-fade-up text-center text-sm leading-relaxed text-slate-500">
             ⏳ {remaining}명이 더 쓰면
             <br />
@@ -317,29 +305,17 @@ export default function QuestionPage() {
           </p>
         )}
 
-        {missionUnlocked && !missionOpen && (
+        {missionUnlocked && (
           <button
             type="button"
             onClick={() => {
-              playReveal();
-              setMissionOpen(true);
+              playSound("select");
+              router.push("/mission");
             }}
             className="lm-button mt-6 animate-pop-in"
           >
             🎯 오늘의 미션 보기
           </button>
-        )}
-
-        {missionOpen && mission && (
-          <section className="mt-5 animate-pop-in rounded-3xl bg-slate-900 p-6 text-white shadow-lg">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">
-              🎯 TODAY&apos;S MISSION
-            </p>
-            <p className="mt-3 text-2xl font-extrabold leading-snug">{mission}</p>
-            <p className="mt-4 text-sm leading-relaxed text-slate-400">
-              식사가 끝나기 전에 함께 해결해보세요.
-            </p>
-          </section>
         )}
 
         <p className="mt-8 text-center text-sm text-slate-400">맛있게 드세요! 🍚</p>

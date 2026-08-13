@@ -9,6 +9,7 @@ interface Summary {
   storeKind: "file" | "supabase";
   supabaseConfigured: boolean;
   status: string;
+  missionsUnlocked: boolean;
   menus: MenuOption[];
   submittedCount: number;
   totalCount: number;
@@ -114,6 +115,26 @@ export default function AdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ regenerate }),
+      });
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        setError(data.error ?? MESSAGES.serverError);
+        return;
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMissionUnlock(unlocked: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/missions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unlocked }),
       });
       if (!response.ok) {
         const data = (await response.json()) as { error?: string };
@@ -377,6 +398,29 @@ export default function AdminPage() {
           </button>
         )}
       </div>
+
+      {summary.groups.length > 0 && (
+        <section className="mt-4 lm-card">
+          <p className="lm-label">🎯 오늘의 미션 공개</p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            {summary.missionsUnlocked
+              ? "모든 조에 미션이 열려 있습니다. 답변을 다 쓰지 않은 조도 볼 수 있어요."
+              : "기본값은 조원 전원이 답변을 올린 조부터 자동으로 열립니다. 한 명이 자리를 비워 조가 멈췄다면 아래로 강제로 열 수 있어요."}
+          </p>
+          <button
+            type="button"
+            onClick={() => handleMissionUnlock(!summary.missionsUnlocked)}
+            disabled={busy}
+            className={summary.missionsUnlocked ? "lm-button-ghost mt-3" : "lm-button mt-3"}
+          >
+            {busy
+              ? "처리 중..."
+              : summary.missionsUnlocked
+                ? "자동 조건으로 되돌리기"
+                : "모든 조에 미션 강제 공개"}
+          </button>
+        </section>
+      )}
 
       {summary.groups.length > 0 && (
         <section className="mt-8">

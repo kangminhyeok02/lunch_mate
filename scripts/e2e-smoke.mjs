@@ -231,6 +231,7 @@ async function main() {
     "/waiting",
     "/result",
     "/question",
+    "/mission",
     "/admin",
   ]) {
     const response = await fetch(`${BASE}${path}`);

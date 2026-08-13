@@ -42,6 +42,7 @@ export async function GET() {
       storeKind: store.kind,
       supabaseConfigured: isSupabaseConfigured(),
       status: day.status,
+      missionsUnlocked: day.missionsUnlocked,
       menus: day.menus,
       submittedCount: preferences.length,
       totalCount: roster.length,

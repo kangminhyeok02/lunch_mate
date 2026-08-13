@@ -42,6 +42,8 @@ export interface LunchStore {
   getDayState(date: string): Promise<DayState>;
   setMenus(date: string, menus: MenuOption[]): Promise<void>;
   setStatus(date: string, status: AssignmentStatus): Promise<void>;
+  /** Admin escape hatch when a table is stuck waiting on someone. */
+  setMissionsUnlocked(date: string, unlocked: boolean): Promise<void>;
 
   listPreferences(date: string): Promise<LunchPreference[]>;
   getPreference(date: string, userId: string): Promise<LunchPreference | null>;

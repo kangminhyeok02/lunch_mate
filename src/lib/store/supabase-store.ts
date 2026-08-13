@@ -135,7 +135,10 @@ export class SupabaseLunchStore implements LunchStore {
 
   async getDayState(date: string): Promise<DayState> {
     const [{ data: dayRow }, { data: menuRows }] = await Promise.all([
-      this.client.from("lunch_days").select("date,status").eq("date", date).maybeSingle(),
+      // `*` rather than naming missions_unlocked: a database that has not run
+      // the latest migration yet simply omits the field instead of erroring,
+      // so deploy order does not matter.
+      this.client.from("lunch_days").select("*").eq("date", date).maybeSingle(),
       this.client.from("menu_options").select("*").eq("date", date).eq("active", true),
     ]);
 
@@ -143,12 +146,24 @@ export class SupabaseLunchStore implements LunchStore {
       ? (menuRows as MenuRow[]).map(toMenu)
       : defaultMenusFor(date);
 
+    const day = dayRow as {
+      status?: AssignmentStatus;
+      missions_unlocked?: boolean;
+    } | null;
+
     return {
       date,
-      status: ((dayRow as { status?: AssignmentStatus } | null)?.status ??
-        "NOT_STARTED") as AssignmentStatus,
+      status: (day?.status ?? "NOT_STARTED") as AssignmentStatus,
       menus,
+      missionsUnlocked: day?.missions_unlocked ?? false,
     };
+  }
+
+  async setMissionsUnlocked(date: string, unlocked: boolean): Promise<void> {
+    const { error } = await this.client
+      .from("lunch_days")
+      .upsert({ date, missions_unlocked: unlocked }, { onConflict: "date" });
+    if (error) throw new Error(`setMissionsUnlocked failed: ${error.message}`);
   }
 
   async setMenus(date: string, menus: MenuOption[]): Promise<void> {
@@ -336,6 +351,7 @@ export class SupabaseLunchStore implements LunchStore {
     await this.client.from("question_answers").delete().eq("date", date);
     await this.client.from("lunch_groups").delete().eq("date", date);
     await this.client.from("lunch_preferences").delete().eq("date", date);
+    await this.setMissionsUnlocked(date, false);
     await this.setStatus(date, "NOT_STARTED");
   }
 }

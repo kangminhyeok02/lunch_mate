@@ -184,6 +184,25 @@ if (rest.length > 0) {
   check("아직 안 쓴 사람이 남아 있음", board.answeredCount < board.memberCount);
 }
 
+// --- 관리자 강제 공개 -------------------------------------------------------
+board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
+check("전원 답변 전에는 미션 잠김", board.missionUnlocked === false);
+
+const unlockUnauthed = await post("/api/admin/missions", { unlocked: true });
+check("미인증 강제 공개 차단", unlockUnauthed.status === 401, `status=${unlockUnauthed.status}`);
+
+const unlock = await post("/api/admin/missions", { unlocked: true }, { cookie: adminCookie });
+check("관리자 강제 공개", unlock.status === 200, `status=${unlock.status}`);
+
+board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
+check("강제 공개 후 미션 열림", board.missionUnlocked === true);
+check("강제 공개 표시", board.missionForced === true);
+
+const relock = await post("/api/admin/missions", { unlocked: false }, { cookie: adminCookie });
+check("자동 조건으로 되돌리기", relock.status === 200);
+board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
+check("되돌린 뒤 다시 잠김", board.missionUnlocked === false);
+
 // --- 미션 해제 조건: 조원 전원 답변 --------------------------------------
 for (const member of rest) {
   await post("/api/answers", { userId: member.id, content: `${member.name}의 답변` });
@@ -199,6 +218,8 @@ check(
   (board.answers ?? []).length === board.memberCount,
   `${(board.answers ?? []).length}건`,
 );
+check("전원 답변 시 미션 자동 해제", board.missionUnlocked === true);
+check("자동 해제는 강제 표시 없음", board.missionForced === false);
 
 console.log(`\n결과: ${passed} passed / ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

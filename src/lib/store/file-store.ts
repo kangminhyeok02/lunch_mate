@@ -32,6 +32,7 @@ interface DayRecord {
   preferences: LunchPreference[];
   groups: LunchGroup[];
   answers: QuestionAnswer[];
+  missionsUnlocked: boolean;
 }
 
 interface FileShape {
@@ -94,10 +95,12 @@ export class FileLunchStore implements LunchStore {
         preferences: [],
         groups: [],
         answers: [],
+        missionsUnlocked: false,
       };
     }
-    // Files written before answers existed have no such array.
+    // Files written before these fields existed do not carry them.
     data.days[date].answers ??= [];
+    data.days[date].missionsUnlocked ??= false;
     return data.days[date];
   }
 
@@ -105,9 +108,25 @@ export class FileLunchStore implements LunchStore {
     const data = await this.read();
     const day = data.days[date];
     if (!day) {
-      return { date, status: "NOT_STARTED", menus: defaultMenusFor(date) };
+      return {
+        date,
+        status: "NOT_STARTED",
+        menus: defaultMenusFor(date),
+        missionsUnlocked: false,
+      };
     }
-    return { date, status: day.status, menus: day.menus };
+    return {
+      date,
+      status: day.status,
+      menus: day.menus,
+      missionsUnlocked: day.missionsUnlocked ?? false,
+    };
+  }
+
+  async setMissionsUnlocked(date: string, unlocked: boolean): Promise<void> {
+    await this.transaction((data) => {
+      FileLunchStore.day(data, date).missionsUnlocked = unlocked;
+    });
   }
 
   async setMenus(date: string, menus: MenuOption[]): Promise<void> {
