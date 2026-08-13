@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SoundToggle } from "@/components/sound-toggle";
 import { MESSAGES } from "@/lib/messages";
 import { readSession } from "@/lib/session";
-import { playSound } from "@/lib/sound";
+import { playReveal, playSound } from "@/lib/sound";
 import { ANSWER_MAX_LENGTH } from "@/lib/types";
 
 interface SharedAnswer {
@@ -41,6 +41,7 @@ export default function QuestionPage() {
   const [mission, setMission] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
+  const [missionOpen, setMissionOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -167,6 +168,10 @@ export default function QuestionPage() {
   const answeredCount = board.answeredCount ?? 0;
   const memberCount = board.memberCount ?? 0;
   const showComposer = !board.revealed || editing;
+  // The mission is the last step: it waits for the whole table to answer.
+  const everyoneAnswered = memberCount > 0 && answeredCount >= memberCount;
+  const missionUnlocked = Boolean(board.revealed) && everyoneAnswered;
+  const remaining = Math.max(memberCount - answeredCount, 0);
 
   return (
     <main className="lm-shell">
@@ -288,12 +293,6 @@ export default function QuestionPage() {
               ))}
             </ul>
 
-            {answeredCount < memberCount && (
-              <p className="mt-4 text-center text-sm text-slate-400">
-                아직 {memberCount - answeredCount}명이 쓰는 중이에요…
-              </p>
-            )}
-
             {!editing && (
               <button
                 type="button"
@@ -310,11 +309,29 @@ export default function QuestionPage() {
           </section>
         )}
 
-        {mission && (
-          <section
-            className="mt-5 animate-pop-in rounded-3xl bg-slate-900 p-6 text-white shadow-lg"
-            style={{ animationDelay: "0.15s" }}
+        {board.revealed && !everyoneAnswered && (
+          <p className="mt-6 animate-fade-up text-center text-sm leading-relaxed text-slate-500">
+            ⏳ {remaining}명이 더 쓰면
+            <br />
+            오늘의 미션이 열려요.
+          </p>
+        )}
+
+        {missionUnlocked && !missionOpen && (
+          <button
+            type="button"
+            onClick={() => {
+              playReveal();
+              setMissionOpen(true);
+            }}
+            className="lm-button mt-6 animate-pop-in"
           >
+            🎯 오늘의 미션 보기
+          </button>
+        )}
+
+        {missionOpen && mission && (
+          <section className="mt-5 animate-pop-in rounded-3xl bg-slate-900 p-6 text-white shadow-lg">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">
               🎯 TODAY&apos;S MISSION
             </p>

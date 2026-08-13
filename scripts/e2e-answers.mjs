@@ -184,5 +184,21 @@ if (rest.length > 0) {
   check("아직 안 쓴 사람이 남아 있음", board.answeredCount < board.memberCount);
 }
 
+// --- 미션 해제 조건: 조원 전원 답변 --------------------------------------
+for (const member of rest) {
+  await post("/api/answers", { userId: member.id, content: `${member.name}의 답변` });
+}
+board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
+check(
+  "전원 답변 시 answeredCount === memberCount (미션 해제 조건)",
+  board.answeredCount === board.memberCount,
+  `${board.answeredCount}/${board.memberCount}`,
+);
+check(
+  "전원 답변이 모두 노출됨",
+  (board.answers ?? []).length === board.memberCount,
+  `${(board.answers ?? []).length}건`,
+);
+
 console.log(`\n결과: ${passed} passed / ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);
