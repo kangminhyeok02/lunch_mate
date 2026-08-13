@@ -123,6 +123,63 @@ export async function getResultForUser(
   };
 }
 
+export interface SharedAnswer {
+  userId: string;
+  name: string;
+  content: string;
+  updatedAt: string;
+  isMine: boolean;
+}
+
+export interface AnswerBoard {
+  question: string | null;
+  groupNumber: number;
+  /** How many of the table have answered, shown before the reveal too. */
+  answeredCount: number;
+  memberCount: number;
+  myAnswer: string | null;
+  /** False until the reader has answered — the others stay hidden. */
+  revealed: boolean;
+  answers: SharedAnswer[];
+}
+
+/**
+ * The question board for one person. Answers stay hidden until they have
+ * written their own, so nobody is anchored by what the table already said.
+ */
+export async function getAnswerBoard(
+  date: string,
+  userId: string,
+): Promise<AnswerBoard | null> {
+  const result = await getResultForUser(date, userId);
+  if (!result) return null;
+
+  const answers = await getStore().listAnswers(date, result.group.id);
+  const byId = new Map(getRoster().map((u) => [u.id, u]));
+  const mine = answers.find((a) => a.userId === userId) ?? null;
+
+  // Only count answers from people actually seated at this table.
+  const seated = answers.filter((a) => result.group.memberIds.includes(a.userId));
+
+  return {
+    question: result.question?.content ?? null,
+    groupNumber: result.group.groupNumber,
+    answeredCount: seated.length,
+    memberCount: result.members.length,
+    myAnswer: mine?.content ?? null,
+    revealed: Boolean(mine),
+    answers: mine
+      ? seated.map((a) => ({
+          userId: a.userId,
+          name: byId.get(a.userId)?.name ?? "알 수 없음",
+          content: a.content,
+          updatedAt: a.updatedAt,
+          isMine: a.userId === userId,
+        }))
+      : [],
+  };
+}
+
 export const MATCHING_POINT_LABEL: Record<MatchingPointKind, string> = {
   SAME_MENU: "같은 메뉴를 선택했어요",
   SIMILAR_SPEED: "식사 속도가 비슷해요",

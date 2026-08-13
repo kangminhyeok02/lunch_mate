@@ -11,6 +11,7 @@ import type {
   LunchGroup,
   LunchPreference,
   MenuOption,
+  QuestionAnswer,
 } from "../types";
 
 export interface SubmitPreferenceInput {
@@ -18,6 +19,14 @@ export interface SubmitPreferenceInput {
   date: string;
   menuChoice: string;
   eatingSpeed: EatingSpeed;
+}
+
+export interface SaveAnswerInput {
+  userId: string;
+  date: string;
+  groupId: string;
+  questionId: string | null;
+  content: string;
 }
 
 export type SubmitFailureReason = "DUPLICATE" | "UNKNOWN_USER" | "UNKNOWN_MENU";
@@ -41,6 +50,11 @@ export interface LunchStore {
 
   getGroups(date: string): Promise<LunchGroup[]>;
   saveGroups(date: string, groups: LunchGroup[]): Promise<void>;
+
+  /** Every answer written by one table, oldest first. */
+  listAnswers(date: string, groupId: string): Promise<QuestionAnswer[]>;
+  /** Writes this user's answer for the day, replacing an earlier one. */
+  saveAnswer(input: SaveAnswerInput): Promise<QuestionAnswer>;
 
   /** Past days' seating, oldest excluded automatically by the caller's cutoff. */
   getHistory(beforeDate: string): Promise<HistoryEntry[]>;

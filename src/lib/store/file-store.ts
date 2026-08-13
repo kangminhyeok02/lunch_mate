@@ -15,11 +15,13 @@ import type {
   LunchGroup,
   LunchPreference,
   MenuOption,
+  QuestionAnswer,
 } from "../types";
 import { getRoster } from "../roster";
 import {
   defaultMenusFor,
   type LunchStore,
+  type SaveAnswerInput,
   type SubmitPreferenceInput,
   type SubmitResult,
 } from "./types";
@@ -29,6 +31,7 @@ interface DayRecord {
   menus: MenuOption[];
   preferences: LunchPreference[];
   groups: LunchGroup[];
+  answers: QuestionAnswer[];
 }
 
 interface FileShape {
@@ -90,8 +93,11 @@ export class FileLunchStore implements LunchStore {
         menus: defaultMenusFor(date),
         preferences: [],
         groups: [],
+        answers: [],
       };
     }
+    // Files written before answers existed have no such array.
+    data.days[date].answers ??= [];
     return data.days[date];
   }
 
@@ -169,6 +175,42 @@ export class FileLunchStore implements LunchStore {
       const day = FileLunchStore.day(data, date);
       day.groups = groups;
       day.status = "ASSIGNED";
+    });
+  }
+
+  async listAnswers(date: string, groupId: string): Promise<QuestionAnswer[]> {
+    const data = await this.read();
+    return (data.days[date]?.answers ?? [])
+      .filter((a) => a.groupId === groupId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  }
+
+  async saveAnswer(input: SaveAnswerInput): Promise<QuestionAnswer> {
+    return this.transaction<QuestionAnswer>((data) => {
+      const day = FileLunchStore.day(data, input.date);
+      const now = new Date().toISOString();
+      const existing = day.answers.find((a) => a.userId === input.userId);
+
+      if (existing) {
+        existing.content = input.content;
+        existing.groupId = input.groupId;
+        existing.questionId = input.questionId;
+        existing.updatedAt = now;
+        return existing;
+      }
+
+      const answer: QuestionAnswer = {
+        id: `${input.date}:${input.userId}:answer`,
+        date: input.date,
+        groupId: input.groupId,
+        userId: input.userId,
+        questionId: input.questionId,
+        content: input.content,
+        createdAt: now,
+        updatedAt: now,
+      };
+      day.answers.push(answer);
+      return answer;
     });
   }
 

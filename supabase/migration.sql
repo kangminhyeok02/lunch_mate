@@ -64,6 +64,23 @@ create table if not exists lunch_group_members (
   unique (group_id, user_id)
 );
 
+-- One answer per person per day, shown to the rest of their table.
+create table if not exists question_answers (
+  id          uuid primary key default gen_random_uuid(),
+  date        date not null,
+  group_id    text not null references lunch_groups(id) on delete cascade,
+  user_id     text not null references users(id) on delete cascade,
+  question_id text,
+  content     text not null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Makes re-submitting an edit rather than a second answer.
+create unique index if not exists question_answers_user_date_key
+  on question_answers (user_id, date);
+create index if not exists question_answers_group_idx on question_answers (group_id);
+
 -- Day lifecycle: NOT_STARTED → COLLECTING → READY_TO_ASSIGN → ASSIGNING → ASSIGNED
 create table if not exists lunch_days (
   date       date primary key,
@@ -95,6 +112,7 @@ alter table missions            enable row level security;
 alter table lunch_groups        enable row level security;
 alter table lunch_group_members enable row level security;
 alter table lunch_days          enable row level security;
+alter table question_answers    enable row level security;
 
 do $$
 declare
@@ -102,7 +120,8 @@ declare
 begin
   foreach t in array array[
     'users','menu_options','lunch_preferences','questions',
-    'missions','lunch_groups','lunch_group_members','lunch_days'
+    'missions','lunch_groups','lunch_group_members','lunch_days',
+    'question_answers'
   ]
   loop
     execute format('drop policy if exists %I on %I', t || '_anon_all', t);
@@ -113,7 +132,20 @@ begin
   end loop;
 end $$;
 
--- Realtime: let clients watch assignment status and group creation.
-alter publication supabase_realtime add table lunch_days;
-alter publication supabase_realtime add table lunch_groups;
-alter publication supabase_realtime add table lunch_preferences;
+-- Realtime: let clients watch assignment status, group creation, and answers.
+-- Adding a table twice raises duplicate_object, so this whole file stays re-runnable.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'lunch_days','lunch_groups','lunch_preferences','question_answers'
+  ]
+  loop
+    begin
+      execute format('alter publication supabase_realtime add table %I', t);
+    exception
+      when duplicate_object then null;
+    end;
+  end loop;
+end $$;

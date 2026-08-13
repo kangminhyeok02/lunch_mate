@@ -13,11 +13,13 @@ import type {
   LunchPreference,
   MatchingPointKind,
   MenuOption,
+  QuestionAnswer,
 } from "../types";
 import { getRoster } from "../roster";
 import {
   defaultMenusFor,
   type LunchStore,
+  type SaveAnswerInput,
   type SubmitPreferenceInput,
   type SubmitResult,
 } from "./types";
@@ -75,6 +77,30 @@ function toPreference(row: PreferenceRow): LunchPreference {
     eatingSpeed: row.eating_speed,
     date: row.date,
     createdAt: row.created_at,
+  };
+}
+
+interface AnswerRow {
+  id: string;
+  date: string;
+  group_id: string;
+  user_id: string;
+  question_id: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function toAnswer(row: AnswerRow): QuestionAnswer {
+  return {
+    id: row.id,
+    date: row.date,
+    groupId: row.group_id,
+    userId: row.user_id,
+    questionId: row.question_id,
+    content: row.content,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -257,6 +283,38 @@ export class SupabaseLunchStore implements LunchStore {
     await this.setStatus(date, "ASSIGNED");
   }
 
+  async listAnswers(date: string, groupId: string): Promise<QuestionAnswer[]> {
+    const { data, error } = await this.client
+      .from("question_answers")
+      .select("*")
+      .eq("date", date)
+      .eq("group_id", groupId)
+      .order("created_at");
+    if (error) throw new Error(`listAnswers failed: ${error.message}`);
+    return (data as AnswerRow[]).map(toAnswer);
+  }
+
+  async saveAnswer(input: SaveAnswerInput): Promise<QuestionAnswer> {
+    // The (user_id, date) unique index makes this an edit when one already exists.
+    const { data, error } = await this.client
+      .from("question_answers")
+      .upsert(
+        {
+          date: input.date,
+          group_id: input.groupId,
+          user_id: input.userId,
+          question_id: input.questionId,
+          content: input.content,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,date" },
+      )
+      .select()
+      .single();
+    if (error) throw new Error(`saveAnswer failed: ${error.message}`);
+    return toAnswer(data as AnswerRow);
+  }
+
   async getHistory(beforeDate: string): Promise<HistoryEntry[]> {
     const { data, error } = await this.client
       .from("lunch_groups")
@@ -274,6 +332,8 @@ export class SupabaseLunchStore implements LunchStore {
   }
 
   async resetDay(date: string): Promise<void> {
+    // Explicit even though the group FK cascades, so the order stays obvious.
+    await this.client.from("question_answers").delete().eq("date", date);
     await this.client.from("lunch_groups").delete().eq("date", date);
     await this.client.from("lunch_preferences").delete().eq("date", date);
     await this.setStatus(date, "NOT_STARTED");

@@ -86,6 +86,25 @@ export interface LunchGroup {
   createdAt: string;
 }
 
+/**
+ * One person's answer to their table's question of the day. Visible to the rest
+ * of the table only once the reader has answered themselves.
+ */
+export interface QuestionAnswer {
+  id: string;
+  date: string;
+  groupId: string;
+  userId: string;
+  /** The question this answers, kept so a re-assignment cannot orphan the text. */
+  questionId: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Longest answer we accept, enforced on the server as well as in the textarea. */
+export const ANSWER_MAX_LENGTH = 300;
+
 /** One day's record of who sat together, used to avoid repeat pairings. */
 export interface HistoryEntry {
   date: string;

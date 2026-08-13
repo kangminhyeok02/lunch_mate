@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "node scripts/e2e-smoke.mjs",
+    "e2e:answers": "node scripts/e2e-answers.mjs",
     "qr": "node scripts/generate-qr.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
     "reset:day": "node scripts/reset-day.mjs",
