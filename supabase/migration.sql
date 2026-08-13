@@ -1,5 +1,12 @@
 -- LUNCH MATE — schema
 -- Run this in Supabase Studio → SQL Editor → New query → Run.
+--
+-- 여러 번 실행해도 안전하다. 이미 있는 것은 만들지 않고, 잠금도 잡지 않는다.
+-- 서비스가 돌고 있는 중에도 실행할 수 있다.
+
+-- 다른 트랜잭션에 막히면 데드락으로 끌려가지 말고 빨리 실패하게 한다.
+-- 이 오류가 보이면 그냥 다시 Run 하면 된다.
+set lock_timeout = '5s';
 
 create table if not exists users (
   id          text primary key,
@@ -105,8 +112,20 @@ create table if not exists lunch_days (
 );
 
 -- 이 컬럼이 생기기 전에 만들어진 데이터베이스를 위한 보강.
-alter table lunch_days
-  add column if not exists missions_unlocked boolean not null default false;
+-- ALTER TABLE 은 바꿀 것이 없어도 AccessExclusiveLock 을 잡는다. 앱이 돌고
+-- 있는 동안 재실행하면 그 잠금이 데드락의 원인이 되므로, 실제로 없을 때만 건다.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'lunch_days'
+      and column_name = 'missions_unlocked'
+  ) then
+    alter table lunch_days
+      add column missions_unlocked boolean not null default false;
+  end if;
+end $$;
 
 create index if not exists lunch_preferences_date_idx on lunch_preferences (date);
 create index if not exists lunch_groups_date_idx on lunch_groups (date);
@@ -123,17 +142,10 @@ create index if not exists lunch_groups_date_idx on lunch_groups (date);
 -- prefers the service role key when present.
 -- ---------------------------------------------------------------------------
 
-alter table users               enable row level security;
-alter table menu_options        enable row level security;
-alter table lunch_preferences   enable row level security;
-alter table questions           enable row level security;
-alter table missions            enable row level security;
-alter table lunch_groups        enable row level security;
-alter table lunch_group_members enable row level security;
-alter table lunch_days          enable row level security;
-alter table question_answers    enable row level security;
-alter table answer_reactions    enable row level security;
-
+-- 이 블록은 "없는 것만 만든다". 이미 맞게 설정된 테이블은 건드리지 않으므로
+-- 재실행해도 잠금을 잡지 않는다. 예전 방식(매번 drop 후 create)은 정책이
+-- 멀쩡해도 DROP POLICY 가 AccessExclusiveLock 을 요구해서, 앱이 읽고 있는
+-- 도중에 실행하면 데드락(40P01)이 났다.
 do $$
 declare
   t text;
@@ -144,16 +156,28 @@ begin
     'question_answers','answer_reactions'
   ]
   loop
-    execute format('drop policy if exists %I on %I', t || '_anon_all', t);
-    execute format(
-      'create policy %I on %I for all to anon, authenticated using (true) with check (true)',
-      t || '_anon_all', t
-    );
+    if not exists (
+      select 1 from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = t and c.relrowsecurity
+    ) then
+      execute format('alter table %I enable row level security', t);
+    end if;
+
+    if not exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = t and policyname = t || '_anon_all'
+    ) then
+      execute format(
+        'create policy %I on %I for all to anon, authenticated using (true) with check (true)',
+        t || '_anon_all', t
+      );
+    end if;
   end loop;
 end $$;
 
 -- Realtime: let clients watch assignment status, group creation, and answers.
--- Adding a table twice raises duplicate_object, so this whole file stays re-runnable.
+-- 여기도 이미 등록된 테이블은 건드리지 않는다. 재시도로 걸리는 잠금을 없애려는 것.
 do $$
 declare
   t text;
@@ -162,10 +186,11 @@ begin
     'lunch_days','lunch_groups','lunch_preferences','question_answers','answer_reactions'
   ]
   loop
-    begin
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
       execute format('alter publication supabase_realtime add table %I', t);
-    exception
-      when duplicate_object then null;
-    end;
+    end if;
   end loop;
 end $$;

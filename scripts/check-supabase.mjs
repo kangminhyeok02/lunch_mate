@@ -44,6 +44,7 @@ const TABLES = [
   "lunch_group_members",
   "lunch_days",
   "question_answers",
+  "answer_reactions",
 ];
 
 let missing = 0;
