@@ -48,6 +48,7 @@ export default function QuestionPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reactionError, setReactionError] = useState<string | null>(null);
   const userIdRef = useRef<string | null>(null);
   const alive = useRef(true);
 
@@ -150,17 +151,27 @@ export default function QuestionPage() {
     if (!userId) return;
 
     playSound("tap");
+    setReactionError(null);
     try {
       const response = await fetch("/api/answers/reactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, answerId, kind }),
       });
-      if (!response.ok) return;
+
+      if (!response.ok) {
+        // Saying nothing here reads as "the tap did not register", which sends
+        // people tapping again. Tell them it failed.
+        playSound("error");
+        if (alive.current) setReactionError("반응을 저장하지 못했어요. 잠시 후 다시 눌러주세요.");
+        return;
+      }
+
       const data = (await response.json()) as Board;
       if (alive.current) setBoard(data);
     } catch {
-      // The next poll will bring the true tally.
+      playSound("error");
+      if (alive.current) setReactionError("연결이 불안정해요. 잠시 후 다시 눌러주세요.");
     }
   }
 
@@ -335,6 +346,10 @@ export default function QuestionPage() {
                 </li>
               ))}
             </ul>
+
+            {reactionError && (
+              <p className="mt-3 text-center text-sm text-rose-500">{reactionError}</p>
+            )}
 
             {!editing && (
               <button
