@@ -14,3 +14,6 @@ next-env.d.ts
 data/*.json
 public/qr/
 vercel-env.txt
+
+.vercel
+.env*
