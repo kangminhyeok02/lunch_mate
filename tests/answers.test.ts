@@ -293,6 +293,114 @@ describe("getAnswerBoard", () => {
     expect((await boardFor(me))?.missionUnlocked).toBe(false);
   });
 
+  it("tallies reactions and marks my own", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+    const [me, mate, third] = group.memberIds;
+
+    for (const userId of [me, mate, third]) {
+      await store.saveAnswer({
+        userId,
+        date: DATE,
+        groupId: GROUP_ID,
+        questionId: "q-1",
+        content: `답변 ${userId}`,
+      });
+    }
+    const mateAnswer = (await store.listAnswers(DATE, GROUP_ID)).find(
+      (a) => a.userId === mate,
+    )!;
+
+    await store.toggleReaction({ userId: me, date: DATE, answerId: mateAnswer.id, kind: "LIKE" });
+    await store.toggleReaction({ userId: third, date: DATE, answerId: mateAnswer.id, kind: "LIKE" });
+    await store.toggleReaction({ userId: third, date: DATE, answerId: mateAnswer.id, kind: "HEART" });
+
+    const board = await boardFor(me);
+    const shown = board?.answers.find((a) => a.userId === mate);
+    const like = shown?.reactions.find((r) => r.kind === "LIKE");
+    const heart = shown?.reactions.find((r) => r.kind === "HEART");
+    const laugh = shown?.reactions.find((r) => r.kind === "LAUGH");
+
+    expect(like?.count).toBe(2);
+    expect(like?.mine).toBe(true);
+    // Someone else reacted, so it counts but is not mine.
+    expect(heart?.count).toBe(1);
+    expect(heart?.mine).toBe(false);
+    expect(laugh?.count).toBe(0);
+    expect(laugh?.mine).toBe(false);
+  });
+
+  it("removes the reaction when the same one is sent twice", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+    const [me, mate] = group.memberIds;
+
+    for (const userId of [me, mate]) {
+      await store.saveAnswer({
+        userId,
+        date: DATE,
+        groupId: GROUP_ID,
+        questionId: "q-1",
+        content: "답변",
+      });
+    }
+    const mateAnswer = (await store.listAnswers(DATE, GROUP_ID)).find(
+      (a) => a.userId === mate,
+    )!;
+
+    const on = await store.toggleReaction({
+      userId: me,
+      date: DATE,
+      answerId: mateAnswer.id,
+      kind: "LAUGH",
+    });
+    expect(on.active).toBe(true);
+
+    const off = await store.toggleReaction({
+      userId: me,
+      date: DATE,
+      answerId: mateAnswer.id,
+      kind: "LAUGH",
+    });
+    expect(off.active).toBe(false);
+
+    const board = await boardFor(me);
+    const shown = board?.answers.find((a) => a.userId === mate);
+    expect(shown?.reactions.find((r) => r.kind === "LAUGH")?.count).toBe(0);
+  });
+
+  it("lists who has not written yet", async () => {
+    const group = seatFour();
+    await store.saveGroups(DATE, [group]);
+    const roster = new Map(getRoster().map((u) => [u.id, u.name]));
+    const [me, mate] = group.memberIds;
+
+    await store.saveAnswer({
+      userId: me,
+      date: DATE,
+      groupId: GROUP_ID,
+      questionId: "q-1",
+      content: "내 답변",
+    });
+
+    let board = await boardFor(me);
+    expect(board?.pendingNames).toHaveLength(3);
+    expect(board?.pendingNames).not.toContain(roster.get(me));
+    expect(board?.pendingNames).toContain(roster.get(mate));
+
+    for (const userId of group.memberIds) {
+      await store.saveAnswer({
+        userId,
+        date: DATE,
+        groupId: GROUP_ID,
+        questionId: "q-1",
+        content: "답변",
+      });
+    }
+    board = await boardFor(me);
+    expect(board?.pendingNames).toHaveLength(0);
+  });
+
   it("does not mark the mission forced once everyone has answered anyway", async () => {
     const group = seatFour();
     await store.saveGroups(DATE, [group]);

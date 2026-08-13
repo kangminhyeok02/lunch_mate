@@ -8,11 +8,19 @@ import { MESSAGES } from "@/lib/messages";
 import { readSession } from "@/lib/session";
 import { playReveal, playSound } from "@/lib/sound";
 import { useAssignmentWatch } from "@/lib/use-assignment-watch";
+import { SPEED_LABEL, type EatingSpeed } from "@/lib/types";
+
+interface ResultMember {
+  name: string;
+  menuEmoji: string | null;
+  menuName: string | null;
+  eatingSpeed: EatingSpeed | null;
+}
 
 interface ResultPayload {
   ready: boolean;
   groupNumber?: number;
-  members?: string[];
+  members?: ResultMember[];
   menuName?: string | null;
   question?: string | null;
   mission?: string | null;
@@ -91,13 +99,30 @@ export default function ResultPage() {
         </div>
 
         <ul className="mt-8 space-y-2">
-          {result.members?.map((name) => (
-            <li key={name} className="lm-card flex items-center gap-3 animate-fade-up">
-              <span className="text-2xl">👤</span>
-              <span className="text-lg font-semibold">{name}</span>
+          {result.members?.map((member) => (
+            <li
+              key={member.name}
+              className="lm-card flex items-center justify-between gap-3 animate-fade-up"
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-2xl">👤</span>
+                <span className="text-lg font-semibold">{member.name}</span>
+              </span>
+              <span className="flex items-center gap-2 text-xl">
+                {member.menuEmoji && <span title={member.menuName ?? ""}>{member.menuEmoji}</span>}
+                {member.eatingSpeed && (
+                  <span title={SPEED_LABEL[member.eatingSpeed].title}>
+                    {SPEED_LABEL[member.eatingSpeed].emoji}
+                  </span>
+                )}
+              </span>
             </li>
           ))}
         </ul>
+
+        <p className="mt-2 text-center text-xs text-slate-400">
+          이름 옆은 각자 고른 메뉴와 식사 속도예요.
+        </p>
 
         <div className="mt-6 lm-card space-y-4">
           <div>

@@ -7,13 +7,17 @@ import { assignGroups } from "./matching";
 import { allocatePrompts, findMission, findQuestion } from "./prompts";
 import { getRoster } from "./roster";
 import { getStore } from "./store";
-import type {
-  LunchGroup,
-  MatchingPointKind,
-  Mission,
-  Participant,
-  Question,
-  User,
+import {
+  REACTION_KINDS,
+  type AnswerReaction,
+  type EatingSpeed,
+  type LunchGroup,
+  type MatchingPointKind,
+  type Mission,
+  type Participant,
+  type Question,
+  type ReactionKind,
+  type User,
 } from "./types";
 
 export interface RunAssignmentOptions {
@@ -72,9 +76,18 @@ export async function runAssignment(
   return records;
 }
 
+/** A table-mate plus what they chose, so the result screen can show why. */
+export interface ResultMember {
+  userId: string;
+  name: string;
+  menuEmoji: string | null;
+  menuName: string | null;
+  eatingSpeed: EatingSpeed | null;
+}
+
 export interface MyResult {
   group: LunchGroup;
-  members: User[];
+  members: ResultMember[];
   question: Question | null;
   mission: Mission | null;
   menuName: string | null;
@@ -92,15 +105,27 @@ export async function getResultForUser(
 
   const roster = getRoster();
   const byId = new Map(roster.map((u) => [u.id, u]));
-  const members = group.memberIds
-    .map((id) => byId.get(id))
-    .filter((u): u is User => Boolean(u))
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
   const [preferences, day] = await Promise.all([
     store.listPreferences(date),
     store.getDayState(date),
   ]);
+
+  const members: ResultMember[] = group.memberIds
+    .map((id) => byId.get(id))
+    .filter((u): u is User => Boolean(u))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .map((user) => {
+      const preference = preferences.find((p) => p.userId === user.id);
+      const menu = day.menus.find((m) => m.id === preference?.menuChoice);
+      return {
+        userId: user.id,
+        name: user.name,
+        menuEmoji: menu?.emoji ?? null,
+        menuName: menu?.name ?? null,
+        eatingSpeed: preference?.eatingSpeed ?? null,
+      };
+    });
 
   // Show the table's menu only when everyone actually chose the same one.
   const menuIds = new Set(
@@ -123,12 +148,21 @@ export async function getResultForUser(
   };
 }
 
+export interface ReactionTally {
+  kind: ReactionKind;
+  count: number;
+  /** True when the reader is one of the people who reacted. */
+  mine: boolean;
+}
+
 export interface SharedAnswer {
+  id: string;
   userId: string;
   name: string;
   content: string;
   updatedAt: string;
   isMine: boolean;
+  reactions: ReactionTally[];
 }
 
 export interface AnswerBoard {
@@ -137,6 +171,8 @@ export interface AnswerBoard {
   /** How many of the table have answered, shown before the reveal too. */
   answeredCount: number;
   memberCount: number;
+  /** Table-mates who have not written yet, so the table can nudge them. */
+  pendingNames: string[];
   myAnswer: string | null;
   /** False until the reader has answered — the others stay hidden. */
   revealed: boolean;
@@ -173,6 +209,26 @@ export async function getAnswerBoard(
     result.members.length > 0 && seated.length >= result.members.length;
   const forced = day.missionsUnlocked && !everyoneAnswered;
 
+  const answered = new Set(seated.map((a) => a.userId));
+  const pendingNames = result.members
+    .filter((m) => !answered.has(m.userId))
+    .map((m) => m.name);
+
+  // Reactions only matter once the answers are visible, so skip the read.
+  // A database that has not run the latest migration yet must not take the
+  // whole question screen down with it: fall back to "no reactions".
+  let reactions: AnswerReaction[] = [];
+  if (mine) {
+    try {
+      reactions = await store.listReactions(
+        date,
+        seated.map((a) => a.id),
+      );
+    } catch (error) {
+      console.error("listReactions failed, showing none", error);
+    }
+  }
+
   return {
     missionUnlocked: everyoneAnswered || day.missionsUnlocked,
     missionForced: forced,
@@ -180,16 +236,29 @@ export async function getAnswerBoard(
     groupNumber: result.group.groupNumber,
     answeredCount: seated.length,
     memberCount: result.members.length,
+    pendingNames,
     myAnswer: mine?.content ?? null,
     revealed: Boolean(mine),
     answers: mine
-      ? seated.map((a) => ({
-          userId: a.userId,
-          name: byId.get(a.userId)?.name ?? "알 수 없음",
-          content: a.content,
-          updatedAt: a.updatedAt,
-          isMine: a.userId === userId,
-        }))
+      ? seated.map((a) => {
+          const forAnswer = reactions.filter((r) => r.answerId === a.id);
+          return {
+            id: a.id,
+            userId: a.userId,
+            name: byId.get(a.userId)?.name ?? "알 수 없음",
+            content: a.content,
+            updatedAt: a.updatedAt,
+            isMine: a.userId === userId,
+            reactions: REACTION_KINDS.map((kind) => {
+              const of = forAnswer.filter((r) => r.kind === kind);
+              return {
+                kind,
+                count: of.length,
+                mine: of.some((r) => r.userId === userId),
+              };
+            }),
+          };
+        })
       : [],
   };
 }

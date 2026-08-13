@@ -6,14 +6,22 @@ import { SoundToggle } from "@/components/sound-toggle";
 import { MESSAGES } from "@/lib/messages";
 import { readSession } from "@/lib/session";
 import { playSound } from "@/lib/sound";
-import { ANSWER_MAX_LENGTH } from "@/lib/types";
+import { ANSWER_MAX_LENGTH, REACTION_EMOJI, type ReactionKind } from "@/lib/types";
+
+interface ReactionTally {
+  kind: ReactionKind;
+  count: number;
+  mine: boolean;
+}
 
 interface SharedAnswer {
+  id: string;
   userId: string;
   name: string;
   content: string;
   updatedAt: string;
   isMine: boolean;
+  reactions: ReactionTally[];
 }
 
 interface Board {
@@ -26,6 +34,7 @@ interface Board {
   revealed?: boolean;
   answers?: SharedAnswer[];
   missionUnlocked?: boolean;
+  pendingNames?: string[];
 }
 
 /** Answers land while people are eating, so keep the board fresh. */
@@ -136,6 +145,25 @@ export default function QuestionPage() {
     }
   }
 
+  async function handleReaction(answerId: string, kind: ReactionKind) {
+    const userId = userIdRef.current;
+    if (!userId) return;
+
+    playSound("tap");
+    try {
+      const response = await fetch("/api/answers/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, answerId, kind }),
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as Board;
+      if (alive.current) setBoard(data);
+    } catch {
+      // The next poll will bring the true tally.
+    }
+  }
+
   if (error) {
     return (
       <main className="lm-shell items-center justify-center text-center">
@@ -160,6 +188,7 @@ export default function QuestionPage() {
   // opens: the whole table has answered, or an admin forced it.
   const missionUnlocked = Boolean(board.revealed && board.missionUnlocked);
   const remaining = Math.max(memberCount - answeredCount, 0);
+  const pendingNames = board.pendingNames ?? [];
 
   return (
     <main className="lm-shell">
@@ -248,6 +277,12 @@ export default function QuestionPage() {
           </p>
         )}
 
+        {board.revealed && pendingNames.length > 0 && (
+          <p className="mt-3 text-center text-sm text-slate-400">
+            아직 안 쓴 사람: {pendingNames.join(", ")}
+          </p>
+        )}
+
         {board.revealed && (
           <section className="mt-5">
             <div className="flex items-baseline justify-between">
@@ -277,6 +312,26 @@ export default function QuestionPage() {
                   <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-slate-700">
                     {answer.content}
                   </p>
+
+                  <div className="mt-3 flex gap-2">
+                    {(answer.reactions ?? []).map((reaction) => (
+                      <button
+                        key={reaction.kind}
+                        type="button"
+                        onClick={() => handleReaction(answer.id, reaction.kind)}
+                        aria-pressed={reaction.mine}
+                        className={`flex items-center gap-1 rounded-full border px-3 py-1 text-sm
+                                    transition active:scale-95 ${
+                                      reaction.mine
+                                        ? "border-brand-300 bg-brand-100 font-bold text-brand-800"
+                                        : "border-slate-200 bg-white text-slate-500"
+                                    }`}
+                      >
+                        <span>{REACTION_EMOJI[reaction.kind]}</span>
+                        {reaction.count > 0 && <span>{reaction.count}</span>}
+                      </button>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>

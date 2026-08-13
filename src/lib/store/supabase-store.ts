@@ -14,6 +14,8 @@ import type {
   MatchingPointKind,
   MenuOption,
   QuestionAnswer,
+  AnswerReaction,
+  ReactionKind,
 } from "../types";
 import { getRoster } from "../roster";
 import {
@@ -22,6 +24,7 @@ import {
   type SaveAnswerInput,
   type SubmitPreferenceInput,
   type SubmitResult,
+  type ToggleReactionInput,
 } from "./types";
 
 /** Postgres unique_violation — how a duplicate submission surfaces. */
@@ -101,6 +104,26 @@ function toAnswer(row: AnswerRow): QuestionAnswer {
     content: row.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+interface ReactionRow {
+  id: string;
+  date: string;
+  answer_id: string;
+  user_id: string;
+  kind: ReactionKind;
+  created_at: string;
+}
+
+function toReaction(row: ReactionRow): AnswerReaction {
+  return {
+    id: row.id,
+    date: row.date,
+    answerId: row.answer_id,
+    userId: row.user_id,
+    kind: row.kind,
+    createdAt: row.created_at,
   };
 }
 
@@ -330,6 +353,49 @@ export class SupabaseLunchStore implements LunchStore {
     return toAnswer(data as AnswerRow);
   }
 
+  async listReactions(date: string, answerIds: string[]): Promise<AnswerReaction[]> {
+    if (answerIds.length === 0) return [];
+    const { data, error } = await this.client
+      .from("answer_reactions")
+      .select("*")
+      .eq("date", date)
+      .in("answer_id", answerIds);
+    if (error) throw new Error(`listReactions failed: ${error.message}`);
+    return (data as ReactionRow[]).map(toReaction);
+  }
+
+  async toggleReaction(input: ToggleReactionInput): Promise<{ active: boolean }> {
+    const { data: existing, error: readError } = await this.client
+      .from("answer_reactions")
+      .select("id")
+      .eq("answer_id", input.answerId)
+      .eq("user_id", input.userId)
+      .eq("kind", input.kind)
+      .maybeSingle();
+    if (readError) throw new Error(`toggleReaction read failed: ${readError.message}`);
+
+    if (existing) {
+      const { error } = await this.client
+        .from("answer_reactions")
+        .delete()
+        .eq("id", (existing as { id: string }).id);
+      if (error) throw new Error(`toggleReaction delete failed: ${error.message}`);
+      return { active: false };
+    }
+
+    const { error } = await this.client.from("answer_reactions").insert({
+      date: input.date,
+      answer_id: input.answerId,
+      user_id: input.userId,
+      kind: input.kind,
+    });
+    // A double tap can race; the unique index makes that a no-op, still active.
+    if (error && error.code !== UNIQUE_VIOLATION) {
+      throw new Error(`toggleReaction insert failed: ${error.message}`);
+    }
+    return { active: true };
+  }
+
   async getHistory(beforeDate: string): Promise<HistoryEntry[]> {
     const { data, error } = await this.client
       .from("lunch_groups")
@@ -348,6 +414,7 @@ export class SupabaseLunchStore implements LunchStore {
 
   async resetDay(date: string): Promise<void> {
     // Explicit even though the group FK cascades, so the order stays obvious.
+    await this.client.from("answer_reactions").delete().eq("date", date);
     await this.client.from("question_answers").delete().eq("date", date);
     await this.client.from("lunch_groups").delete().eq("date", date);
     await this.client.from("lunch_preferences").delete().eq("date", date);

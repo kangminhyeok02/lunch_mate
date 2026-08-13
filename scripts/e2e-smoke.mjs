@@ -166,7 +166,15 @@ async function main() {
   );
   check(
     "everyone sees their own name in their table",
-    results.every((r, i) => r.body?.members?.includes(users[i].name)),
+    results.every((r, i) => r.body?.members?.some((m) => m.name === users[i].name)),
+  );
+  check(
+    "each table-mate carries their menu and speed",
+    results.every((r) =>
+      r.body?.members?.every(
+        (m) => typeof m.menuEmoji === "string" && typeof m.eatingSpeed === "string",
+      ),
+    ),
   );
   check("every table has a question", results.every((r) => Boolean(r.body?.question)));
   check("every table has a mission", results.every((r) => Boolean(r.body?.mission)));
@@ -182,7 +190,7 @@ async function main() {
   const tables = new Map();
   results.forEach((r) => {
     const key = r.body.groupNumber;
-    tables.set(key, r.body.members.join("|"));
+    tables.set(key, r.body.members.map((m) => m.name).join("|"));
   });
   check("nine distinct tables", tables.size === 9, `got ${tables.size}`);
 

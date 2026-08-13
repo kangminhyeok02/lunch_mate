@@ -105,6 +105,26 @@ export interface QuestionAnswer {
 /** Longest answer we accept, enforced on the server as well as in the textarea. */
 export const ANSWER_MAX_LENGTH = 300;
 
+/** Light-touch responses to a table-mate's answer. */
+export type ReactionKind = "LIKE" | "HEART" | "LAUGH";
+
+export const REACTION_KINDS: ReactionKind[] = ["LIKE", "HEART", "LAUGH"];
+
+export const REACTION_EMOJI: Record<ReactionKind, string> = {
+  LIKE: "👍",
+  HEART: "❤️",
+  LAUGH: "😂",
+};
+
+export interface AnswerReaction {
+  id: string;
+  date: string;
+  answerId: string;
+  userId: string;
+  kind: ReactionKind;
+  createdAt: string;
+}
+
 /** One day's record of who sat together, used to avoid repeat pairings. */
 export interface HistoryEntry {
   date: string;

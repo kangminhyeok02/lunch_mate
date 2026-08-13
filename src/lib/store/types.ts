@@ -12,6 +12,8 @@ import type {
   LunchPreference,
   MenuOption,
   QuestionAnswer,
+  AnswerReaction,
+  ReactionKind,
 } from "../types";
 
 export interface SubmitPreferenceInput {
@@ -27,6 +29,13 @@ export interface SaveAnswerInput {
   groupId: string;
   questionId: string | null;
   content: string;
+}
+
+export interface ToggleReactionInput {
+  userId: string;
+  date: string;
+  answerId: string;
+  kind: ReactionKind;
 }
 
 export type SubmitFailureReason = "DUPLICATE" | "UNKNOWN_USER" | "UNKNOWN_MENU";
@@ -57,6 +66,11 @@ export interface LunchStore {
   listAnswers(date: string, groupId: string): Promise<QuestionAnswer[]>;
   /** Writes this user's answer for the day, replacing an earlier one. */
   saveAnswer(input: SaveAnswerInput): Promise<QuestionAnswer>;
+
+  /** Reactions on the given answers. */
+  listReactions(date: string, answerIds: string[]): Promise<AnswerReaction[]>;
+  /** Adds the reaction, or removes it when the same one is sent again. */
+  toggleReaction(input: ToggleReactionInput): Promise<{ active: boolean }>;
 
   /** Past days' seating, oldest excluded automatically by the caller's cutoff. */
   getHistory(beforeDate: string): Promise<HistoryEntry[]>;

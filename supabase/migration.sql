@@ -81,6 +81,19 @@ create unique index if not exists question_answers_user_date_key
   on question_answers (user_id, date);
 create index if not exists question_answers_group_idx on question_answers (group_id);
 
+-- 조원 답변에 다는 가벼운 반응. 같은 사람이 같은 반응을 두 번 달면 취소된다.
+create table if not exists answer_reactions (
+  id         uuid primary key default gen_random_uuid(),
+  date       date not null,
+  answer_id  uuid not null references question_answers(id) on delete cascade,
+  user_id    text not null references users(id) on delete cascade,
+  kind       text not null check (kind in ('LIKE','HEART','LAUGH')),
+  created_at timestamptz not null default now(),
+  unique (answer_id, user_id, kind)
+);
+
+create index if not exists answer_reactions_date_idx on answer_reactions (date);
+
 -- Day lifecycle: NOT_STARTED → COLLECTING → READY_TO_ASSIGN → ASSIGNING → ASSIGNED
 create table if not exists lunch_days (
   date       date primary key,
@@ -119,6 +132,7 @@ alter table lunch_groups        enable row level security;
 alter table lunch_group_members enable row level security;
 alter table lunch_days          enable row level security;
 alter table question_answers    enable row level security;
+alter table answer_reactions    enable row level security;
 
 do $$
 declare
@@ -127,7 +141,7 @@ begin
   foreach t in array array[
     'users','menu_options','lunch_preferences','questions',
     'missions','lunch_groups','lunch_group_members','lunch_days',
-    'question_answers'
+    'question_answers','answer_reactions'
   ]
   loop
     execute format('drop policy if exists %I on %I', t || '_anon_all', t);
@@ -145,7 +159,7 @@ declare
   t text;
 begin
   foreach t in array array[
-    'lunch_days','lunch_groups','lunch_preferences','question_answers'
+    'lunch_days','lunch_groups','lunch_preferences','question_answers','answer_reactions'
   ]
   loop
     begin

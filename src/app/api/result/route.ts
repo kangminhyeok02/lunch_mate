@@ -23,7 +23,12 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ready: true,
       groupNumber: result.group.groupNumber,
-      members: result.members.map((m) => m.name),
+      members: result.members.map((m) => ({
+        name: m.name,
+        menuEmoji: m.menuEmoji,
+        menuName: m.menuName,
+        eatingSpeed: m.eatingSpeed,
+      })),
       menuName: result.menuName,
       question: result.question?.content ?? null,
       mission: result.mission?.content ?? null,

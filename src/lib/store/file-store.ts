@@ -16,6 +16,7 @@ import type {
   LunchPreference,
   MenuOption,
   QuestionAnswer,
+  AnswerReaction,
 } from "../types";
 import { getRoster } from "../roster";
 import {
@@ -24,6 +25,7 @@ import {
   type SaveAnswerInput,
   type SubmitPreferenceInput,
   type SubmitResult,
+  type ToggleReactionInput,
 } from "./types";
 
 interface DayRecord {
@@ -32,6 +34,7 @@ interface DayRecord {
   preferences: LunchPreference[];
   groups: LunchGroup[];
   answers: QuestionAnswer[];
+  reactions: AnswerReaction[];
   missionsUnlocked: boolean;
 }
 
@@ -95,11 +98,13 @@ export class FileLunchStore implements LunchStore {
         preferences: [],
         groups: [],
         answers: [],
+        reactions: [],
         missionsUnlocked: false,
       };
     }
     // Files written before these fields existed do not carry them.
     data.days[date].answers ??= [];
+    data.days[date].reactions ??= [];
     data.days[date].missionsUnlocked ??= false;
     return data.days[date];
   }
@@ -230,6 +235,40 @@ export class FileLunchStore implements LunchStore {
       };
       day.answers.push(answer);
       return answer;
+    });
+  }
+
+  async listReactions(date: string, answerIds: string[]): Promise<AnswerReaction[]> {
+    if (answerIds.length === 0) return [];
+    const data = await this.read();
+    const wanted = new Set(answerIds);
+    return (data.days[date]?.reactions ?? []).filter((r) => wanted.has(r.answerId));
+  }
+
+  async toggleReaction(input: ToggleReactionInput): Promise<{ active: boolean }> {
+    return this.transaction<{ active: boolean }>((data) => {
+      const day = FileLunchStore.day(data, input.date);
+      const index = day.reactions.findIndex(
+        (r) =>
+          r.answerId === input.answerId &&
+          r.userId === input.userId &&
+          r.kind === input.kind,
+      );
+
+      if (index >= 0) {
+        day.reactions.splice(index, 1);
+        return { active: false };
+      }
+
+      day.reactions.push({
+        id: `${input.answerId}:${input.userId}:${input.kind}`,
+        date: input.date,
+        answerId: input.answerId,
+        userId: input.userId,
+        kind: input.kind,
+        createdAt: new Date().toISOString(),
+      });
+      return { active: true };
     });
   }
 

@@ -184,6 +184,66 @@ if (rest.length > 0) {
   check("아직 안 쓴 사람이 남아 있음", board.answeredCount < board.memberCount);
 }
 
+// --- 리액션 -----------------------------------------------------------------
+board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
+const mateShown = (board.answers ?? []).find((a) => !a.isMine);
+check("조원 답변 id 노출", Boolean(mateShown?.id));
+check(
+  "초기 리액션 0",
+  (mateShown?.reactions ?? []).every((r) => r.count === 0 && r.mine === false),
+);
+
+const react = await post("/api/answers/reactions", {
+  userId: me.id,
+  answerId: mateShown.id,
+  kind: "LIKE",
+});
+check("리액션 등록", react.status === 200, `status=${react.status}`);
+const likedAnswer = (react.body.answers ?? []).find((a) => a.id === mateShown.id);
+const like = (likedAnswer?.reactions ?? []).find((r) => r.kind === "LIKE");
+check("리액션 반영", like?.count === 1 && like?.mine === true);
+
+const unreact = await post("/api/answers/reactions", {
+  userId: me.id,
+  answerId: mateShown.id,
+  kind: "LIKE",
+});
+const unliked = (unreact.body.answers ?? []).find((a) => a.id === mateShown.id);
+const unlike = (unliked?.reactions ?? []).find((r) => r.kind === "LIKE");
+check("같은 리액션 재전송 시 취소", unlike?.count === 0 && unlike?.mine === false);
+
+const badKind = await post("/api/answers/reactions", {
+  userId: me.id,
+  answerId: mateShown.id,
+  kind: "NOPE",
+});
+check("알 수 없는 리액션 거부", badKind.status === 400, `status=${badKind.status}`);
+
+const badAnswer = await post("/api/answers/reactions", {
+  userId: me.id,
+  answerId: "00000000-0000-0000-0000-000000000000",
+  kind: "LIKE",
+});
+check("존재하지 않는 답변 거부", badAnswer.status === 404, `status=${badAnswer.status}`);
+
+// 아직 답을 안 쓴 사람은 리액션도 못 단다 (내용을 볼 수 없으므로).
+const silent = rest[0];
+if (silent) {
+  const notAnswered = await post("/api/answers/reactions", {
+    userId: silent.id,
+    answerId: mateShown.id,
+    kind: "LIKE",
+  });
+  check("답변 전에는 리액션 불가", notAnswered.status === 409, `status=${notAnswered.status}`);
+}
+
+// 미작성자 이름
+check("미작성자 이름 노출", Array.isArray(board.pendingNames) && board.pendingNames.length > 0);
+check(
+  "미작성자에 본인 없음",
+  !(board.pendingNames ?? []).includes(me.name),
+);
+
 // --- 관리자 강제 공개 -------------------------------------------------------
 board = (await json(`/api/answers?userId=${encodeURIComponent(me.id)}`)).body;
 check("전원 답변 전에는 미션 잠김", board.missionUnlocked === false);
